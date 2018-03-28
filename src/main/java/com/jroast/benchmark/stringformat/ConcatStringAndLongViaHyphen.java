@@ -15,13 +15,19 @@
  */
 package com.jroast.benchmark.stringformat;
 
+import org.apache.commons.lang3.text.StrSubstitutor;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.slf4j.helpers.MessageFormatter;
+import org.stringtemplate.v4.ST;
 
 import java.text.MessageFormat;
+import java.util.Formatter;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Benchmarking different approaches to concatenating a string and long numeric
@@ -71,6 +77,29 @@ public class ConcatStringAndLongViaHyphen {
     }
 
     @Benchmark
+    public String formatterFormat(DataSource data) {
+        StringBuilder buffer = new StringBuilder();
+        Formatter formatter = new Formatter(buffer);
+        formatter.format("%s-%d", data.getString(), data.getNumber());
+        return buffer.toString();
+    }
+
+    @Benchmark
+    public String stringTemplateRender(DataSource data) {
+        ST template = new ST("<string1>-<string2>");
+        template.add("string1", data.getString());
+        template.add("string2", data.getNumber());
+        return template.render();
+    }
+
+    @Benchmark
+    public String messageFormatterStaticFormat(DataSource data) {
+        return MessageFormatter
+                .format("{}-{}", data.getString(), data.getNumber())
+                .getMessage();
+    }
+
+    @Benchmark
     public String messageFormatStaticFormat(DataSource data) {
         return MessageFormat.format("{0}-{1,number,#}", data.getString(), data.getNumber());
     }
@@ -79,6 +108,17 @@ public class ConcatStringAndLongViaHyphen {
     public String messageFormatCachedFormat(DataSource data, MessageFormatCache state) {
         MessageFormat messageFormat = state.getCachedFormat();
         return messageFormat.format(new Object[]{data.getString(), data.getNumber()});
+    }
+
+    @Benchmark
+    public String strSubstitutorFormat(DataSource data) {
+        Map<String, String> valuesMap = new HashMap();
+        valuesMap.put("string1", data.getString());
+        valuesMap.put("string2", Long.toString(data.getNumber()));
+
+        StrSubstitutor formatter = new StrSubstitutor(valuesMap);
+        String template = "${string1}-${string2}";
+        return formatter.replace(template);
     }
 
     @State(Scope.Benchmark)

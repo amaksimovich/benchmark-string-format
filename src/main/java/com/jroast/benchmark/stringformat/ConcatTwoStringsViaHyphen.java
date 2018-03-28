@@ -15,13 +15,19 @@
  */
 package com.jroast.benchmark.stringformat;
 
+import org.apache.commons.lang3.text.StrSubstitutor;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.Level;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
 import org.openjdk.jmh.annotations.State;
+import org.slf4j.helpers.MessageFormatter;
+import org.stringtemplate.v4.ST;
 
 import java.text.MessageFormat;
+import java.util.Formatter;
+import java.util.HashMap;
+import java.util.Map;
 
 /**
  * Benchmarking different approaches to concatenating two strings separated by
@@ -70,6 +76,14 @@ public class ConcatTwoStringsViaHyphen {
     }
 
     @Benchmark
+    public String formatterFormat(DataSource data) {
+        StringBuilder buffer = new StringBuilder();
+        Formatter formatter = new Formatter(buffer);
+        formatter.format("%s-%s", data.getFirstString(), data.getSecondString());
+        return buffer.toString();
+    }
+
+    @Benchmark
     public String messageFormatStaticFormat(DataSource data) {
         return MessageFormat.format("{0}-{1}", data.getFirstString(), data.getSecondString());
     }
@@ -78,6 +92,32 @@ public class ConcatTwoStringsViaHyphen {
     public String messageFormatCachedFormat(DataSource data, MessageFormatCache state) {
         MessageFormat messageFormat = state.getCachedFormat();
         return messageFormat.format(new Object[]{data.getFirstString(), data.getSecondString()});
+    }
+
+    @Benchmark
+    public String strSubstitutorFormat(DataSource data) {
+        Map<String, String> valuesMap = new HashMap();
+        valuesMap.put("string1", data.getFirstString());
+        valuesMap.put("string2", data.getSecondString());
+
+        StrSubstitutor formatter = new StrSubstitutor(valuesMap);
+        String template = "${string1}-${string2}";
+        return formatter.replace(template);
+    }
+
+    @Benchmark
+    public String stringTemplateRender(DataSource data) {
+        ST template = new ST("<string1>-<string2>");
+        template.add("string1", data.getFirstString());
+        template.add("string2", data.getSecondString());
+        return template.render();
+    }
+
+    @Benchmark
+    public String messageFormatterStaticFormat(DataSource data) {
+        return MessageFormatter
+                .format("{}-{}", data.getFirstString(), data.getSecondString())
+                .getMessage();
     }
 
     @State(Scope.Benchmark)
